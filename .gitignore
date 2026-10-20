@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 outbox.json
+runs.json
 .venv/
 *.db
 demo/data/
