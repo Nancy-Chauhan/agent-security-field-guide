@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 outbox.json
 .venv/
+*.db
+demo/data/
