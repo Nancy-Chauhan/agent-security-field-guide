@@ -39,10 +39,16 @@ def wait_live(url: str, tries: int = 30) -> bool:
 
 
 def main() -> None:
+    global RESULTS
     start, end = int(sys.argv[1]), int(sys.argv[2])
+    naive = "naive" in sys.argv[3:]
+    guard = "guard" in sys.argv[3:]
+    RESULTS = HERE / f"sweep_{'naive' if naive else 'default'}{'_guard' if guard else ''}.json"
     app.load_env()
     app.setup_tracing()
-    agent = app.build_agent()
+    app.ENFORCE_GUARDRAIL = guard
+    agent = app.build_agent(naive=naive)
+    print(f"mode: {'NAIVE' if naive else 'default'} agent, guardrail {'ON' if guard else 'off'}")
 
     if not wait_live(f"{ROOT}/{start}.html"):
         print("pages not live yet; aborting")

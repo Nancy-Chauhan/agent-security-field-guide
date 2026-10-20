@@ -7,3 +7,4 @@ runs.json
 .venv/
 *.db
 demo/data/
+sweep_results.json
