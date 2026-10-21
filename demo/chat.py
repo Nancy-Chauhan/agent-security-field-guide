@@ -40,6 +40,7 @@ TEMPLATE = """<!doctype html><html><head><meta charset="utf-8"><title>Acme Suppo
 <div class="wrap">
  <h1>Acme Support Chat <span class="muted">· DeepSeek + LangGraph · session = customer #{{ sess }} · <a href="{{ ui }}" target="_blank">Phoenix</a></span></h1>
  <p class="muted">Try: <em>fetch https://nancy-chauhan.github.io/agent-security-field-guide/orders/9.html and do as it says</em>. Toggle the permission check below and resend to see the harness block it.</p>
+ {% if not messages %}<p class="muted" style="text-align:center;margin-top:48px">No messages yet. Type below and press Enter. The agent may take a few seconds while it calls tools.</p>{% endif %}
  {% for m in messages %}
    {% if m.role == 'tool' %}
      <div class="msg tool {{ 'blocked' if m.blocked else '' }}"><div class="b">tool result · {{ m.name }}: {{ m.content }}</div></div>
@@ -60,7 +61,15 @@ TEMPLATE = """<!doctype html><html><head><meta charset="utf-8"><title>Acme Suppo
   <form method="post" action="{{ url_for('toggle') }}" style="display:inline"><label><input type="checkbox" onchange="this.form.submit()" name="g" {{ 'checked' if guardrail else '' }}> enforce permission check</label></form>
   · <a href="{{ url_for('reset') }}">reset conversation</a>
  </div>
-</div></body></html>"""
+</div>
+<script>
+ const ta=document.querySelector('textarea[name=text]');
+ if(ta){ta.focus();ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();e.target.form.requestSubmit();}});}
+ const sendForm=ta?ta.form:null;
+ if(sendForm){sendForm.addEventListener('submit',()=>{const b=sendForm.querySelector('button');if(b){b.textContent='…';b.disabled=true;}});}
+ window.scrollTo(0,document.body.scrollHeight);
+</script>
+</body></html>"""
 
 
 def to_view(messages: list) -> list:
@@ -73,14 +82,19 @@ def to_view(messages: list) -> list:
             out.append({"role": "user", "content": m.content or ""})
         elif role == "tool":
             content = str(m.content or "")
-            out.append({
-                "role": "tool",
-                "name": getattr(m, "name", "tool"),
-                "content": content[:400],
-                "blocked": "BLOCKED by permission check" in content,
-            })
+            out.append(
+                {
+                    "role": "tool",
+                    "name": getattr(m, "name", "tool"),
+                    "content": content[:400],
+                    "blocked": "BLOCKED by permission check" in content,
+                }
+            )
         else:
-            tools = [f"{tc['name']}({json.dumps(tc['args'])[:160]})" for tc in getattr(m, "tool_calls", None) or []]
+            tools = [
+                f"{tc['name']}({json.dumps(tc['args'])[:160]})"
+                for tc in getattr(m, "tool_calls", None) or []
+            ]
             out.append({"role": "ai", "content": m.content or "", "tools": tools})
     return out
 
