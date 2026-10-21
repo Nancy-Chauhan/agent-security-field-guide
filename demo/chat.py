@@ -125,8 +125,9 @@ TEMPLATE = """<!doctype html><html><head><meta charset="utf-8"><title>Acme Suppo
      const hint=document.querySelector('.emptyhint'); if(hint) hint.remove();
      const u=bubble('user',''); u.querySelector('.b').textContent=text;        // my message, immediately above
      bubble('ai','<span class="muted">…thinking</span>');                      // agent placeholder
-     const btn=ta.form.querySelector('button'); if(btn){btn.textContent='…';btn.disabled=true;}
-     ta.value=''; window.scrollTo(0,document.body.scrollHeight);
+     const btn=ta.form.querySelector('button'); if(btn){btn.textContent='…';}
+     ta.setAttribute('readonly','');  // keep the value in the POST, but prevent edits while sending
+     window.scrollTo(0,document.body.scrollHeight);
    });
  }
  window.scrollTo(0,document.body.scrollHeight);
