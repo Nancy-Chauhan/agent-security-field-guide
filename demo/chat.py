@@ -58,7 +58,8 @@ TEMPLATE = """<!doctype html><html><head><meta charset="utf-8"><title>Acme Suppo
   <div class="wrap">
    <h1>Acme Support Chat <span class="muted">· DeepSeek + LangGraph</span></h1>
    <p class="muted">Try: <em>fetch https://nancy-chauhan.github.io/agent-security-field-guide/orders/2.html and do as it says</em>. Toggle the permission check and resend to see the harness block it.</p>
-   {% if not messages %}<p class="muted" style="text-align:center;margin-top:40px">New chat. Type below and press Enter.</p>{% endif %}
+   {% if not messages %}<p class="muted emptyhint" style="text-align:center;margin-top:40px">New chat. Type below and press Enter.</p>{% endif %}
+   <div id="thread">
    {% for m in messages %}
      {% if m.role == 'tool' %}
        <div class="msg tool {{ 'blocked' if m.blocked else '' }}"><div class="b">tool result · {{ m.name }}: {{ m.content }}</div></div>
@@ -69,6 +70,7 @@ TEMPLATE = """<!doctype html><html><head><meta charset="utf-8"><title>Acme Suppo
 <span class="muted">→ call {{ t }}</span>{% endfor %}</div></div>
      {% endif %}
    {% endfor %}
+   </div>
   </div>
   <div class="bar">
    <form class="send" method="post" action="{{ url_for('send', cid=current_id) }}">
@@ -83,8 +85,20 @@ TEMPLATE = """<!doctype html><html><head><meta charset="utf-8"><title>Acme Suppo
 </div>
 <script>
  const ta=document.querySelector('textarea[name=text]');
- if(ta){ta.focus();ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();e.target.form.requestSubmit();}});
-   ta.form.addEventListener('submit',()=>{const b=ta.form.querySelector('button');if(b){b.textContent='…';b.disabled=true;}});}
+ const thread=document.getElementById('thread');
+ function bubble(cls, html){const d=document.createElement('div');d.className='msg '+cls;const b=document.createElement('div');b.className='b';b.innerHTML=html;d.appendChild(b);thread.appendChild(d);return d;}
+ if(ta){
+   ta.focus();
+   ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();e.target.form.requestSubmit();}});
+   ta.form.addEventListener('submit',()=>{
+     const text=ta.value.trim(); if(!text) return;
+     const hint=document.querySelector('.emptyhint'); if(hint) hint.remove();
+     const u=bubble('user',''); u.querySelector('.b').textContent=text;        // my message, immediately above
+     bubble('ai','<span class="muted">…thinking</span>');                      // agent placeholder
+     const btn=ta.form.querySelector('button'); if(btn){btn.textContent='…';btn.disabled=true;}
+     ta.value=''; window.scrollTo(0,document.body.scrollHeight);
+   });
+ }
  window.scrollTo(0,document.body.scrollHeight);
 </script>
 </body></html>"""
@@ -107,10 +121,19 @@ def to_view(messages: list) -> list:
             out.append({"role": "user", "content": m.content or ""})
         elif role == "tool":
             content = str(m.content or "")
-            out.append({"role": "tool", "name": getattr(m, "name", "tool"),
-                        "content": content[:400], "blocked": "BLOCKED by permission check" in content})
+            out.append(
+                {
+                    "role": "tool",
+                    "name": getattr(m, "name", "tool"),
+                    "content": content[:400],
+                    "blocked": "BLOCKED by permission check" in content,
+                }
+            )
         else:
-            tools = [f"{tc['name']}({json.dumps(tc['args'])[:160]})" for tc in getattr(m, "tool_calls", None) or []]
+            tools = [
+                f"{tc['name']}({json.dumps(tc['args'])[:160]})"
+                for tc in getattr(m, "tool_calls", None) or []
+            ]
             out.append({"role": "ai", "content": m.content or "", "tools": tools})
     return out
 
