@@ -8,3 +8,4 @@ runs.json
 *.db
 demo/data/
 sweep_results.json
+chats.json

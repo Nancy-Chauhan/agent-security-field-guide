@@ -13,15 +13,45 @@ Run:  demo-venv/bin/python chat.py   then open http://localhost:7001
 from __future__ import annotations
 
 import json
+import pathlib
 
 import app  # reuse tools, agent builder, tracing, env
 from flask import Flask, redirect, render_template_string, request, url_for
+from langchain_core.messages import messages_from_dict, messages_to_dict
 
 CHATS: dict[int, dict] = {}  # id -> {"id", "title", "messages"(LangChain msgs)}
 _next_id = 1
+CHATS_FILE = pathlib.Path(__file__).resolve().parent / "chats.json"
 
 flask_app = Flask(__name__)
 AGENT = None
+
+
+def save_chats() -> None:
+    data = {
+        str(c["id"]): {
+            "id": c["id"],
+            "title": c["title"],
+            "messages": messages_to_dict(c["messages"]),
+        }
+        for c in CHATS.values()
+    }
+    CHATS_FILE.write_text(json.dumps(data, indent=2))
+
+
+def load_chats() -> None:
+    global _next_id
+    if not CHATS_FILE.exists():
+        return
+    for k, c in json.loads(CHATS_FILE.read_text()).items():
+        CHATS[int(k)] = {
+            "id": c["id"],
+            "title": c["title"],
+            "messages": messages_from_dict(c["messages"]),
+        }
+    if CHATS:
+        _next_id = max(CHATS) + 1
+
 
 TEMPLATE = """<!doctype html><html><head><meta charset="utf-8"><title>Acme Support Chat</title>
 <style>
@@ -183,6 +213,7 @@ def send(cid: int):
     history = list(chat["messages"]) + [{"role": "user", "content": text}]
     result = AGENT.invoke({"messages": history})
     chat["messages"] = result["messages"]
+    save_chats()
     return redirect(url_for("show", cid=cid))
 
 
@@ -195,6 +226,7 @@ def toggle(cid: int):
 if __name__ == "__main__":
     app.load_env()
     app.setup_tracing()
+    load_chats()
     AGENT = app.build_agent(temperature=0.3)
     print("Chat ready. Open http://localhost:7001")
     flask_app.run(port=7001, debug=False)
